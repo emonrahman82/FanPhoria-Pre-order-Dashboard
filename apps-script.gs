@@ -1,6 +1,6 @@
 // FanPhoria backend: paste this whole file into Google Apps Script (Extensions > Apps Script)
 // 1) Your Google Sheet (text data). Replace with YOUR sheet link:
-const SHEET_URL  = "11WlvGfaOoVdfsN30qXzgZNd0h7KMoOtl0JChLFKDxlQ";
+const SHEET_URL  = "https://docs.google.com/spreadsheets/d/11WlvGfaOoVdfsN30qXzgZNd0h7KMoOtl0JChLFKDxlQ/edit";
 const TOKEN     = "change-this-secret";   // must match APPS_SCRIPT_TOKEN in index.html
 
 const HEAD = ["Order ID","Date","Status","Customer ID","Name","Phone","Address","Customer notes","Product","Anime","Category","Price","Image link","Total","Paid","Due","Order notes"];
