@@ -123,7 +123,8 @@ const live=o=>o.status!=="Cancelled";
 const toast=m=>{const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(t._t);t._t=setTimeout(()=>t.style.display="none",3200)};
 const imgT=()=>"";
 const hr=u=>!u?"":/^https?:\/\//i.test(u)?u:"https://"+u.replace(/^[a-z]+:\/*/i,"");
-const pimg=p=>p.img?`<img src="${esc(hr(p.img))}" alt="" referrerpolicy="no-referrer">`:"";
+const gd=u=>{const m=/(?:drive|docs)\.google\.com/.test(u)&&(u.match(/\/d\/([\w-]{10,})/)||u.match(/[?&]id=([\w-]{10,})/));return m?`https://drive.google.com/thumbnail?id=${m[1]}&sz=w1000`:u};
+const pimg=p=>p.img?`<img src="${esc(gd(hr(p.img)))}" data-o="${esc(hr(p.img))}" alt="" referrerpolicy="no-referrer">`:"";
 
 /* ---------- Google Sheet adapter ---------- */
 const store={orders:{},customers:{}},subs={orders:[],customers:[]};
@@ -233,7 +234,7 @@ function addRow(p={}){
   r.innerHTML=`<div><div class="pic">${pimg(p)||"Photo"}</div></div>
   <div><div class="f"><div><label>Product name *</label><input class="pn" value="${esc(p.name)}"></div><div><label>Price (৳)</label><input class="pp" type="number" min="0" step="any" value="${p.price||""}"></div>
   <div><label>Category</label><select class="pc">${CATS.map(x=>`<option ${x===(p.cat||"Other")?"selected":""}>${x}</option>`).join("")}</select></div></div>
-  <div class="f"><div><label>Anime / Series</label><input class="pa" list="al" value="${esc(p.anime)}" placeholder="e.g. Naruto"></div><div><label>Notes</label><input class="po" value="${esc(p.notes)}"></div></div><div class="f"><div><label>Image URL (optional, paste a picture link to show a preview)</label><input class="pi" type="url" value="${esc(p.img)}" placeholder="https://…/image.jpg"></div></div>
+  <div class="f"><div><label>Anime / Series</label><input class="pa" list="al" value="${esc(p.anime)}" placeholder="e.g. Naruto"></div><div><label>Notes</label><input class="po" value="${esc(p.notes)}"></div></div><div class="f"><div><label>Image URL (optional): paste a picture link or a Google Drive share link</label><input class="pi" type="url" value="${esc(p.img)}" placeholder="https://…/image.jpg"></div></div>
   <button class="b g rm" type="button">Remove</button></div>`;
   $("#prods").appendChild(r);
 }
@@ -340,7 +341,7 @@ function checkAuth(){document.body.classList.toggle("locked",!authed());if(!auth
 function login(){const u=$("#lu").value.trim(),p=$("#lp").value;if(ADMINS.some(a=>a.user===u&&a.pass===p)){AUTH=true;try{sessionStorage.setItem("fp-auth","1")}catch(e){}$("#lp").value="";$("#le").textContent="";checkAuth()}else $("#le").textContent="Incorrect username or password."}
 function logout(){AUTH=false;try{sessionStorage.removeItem("fp-auth")}catch(e){}checkAuth()}
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&(e.target.id==="lu"||e.target.id==="lp"))login()});
-addEventListener("error",e=>{const i=e.target;if(i&&i.tagName==="IMG"&&!(i.src||"").includes("drive.google.com")){const a=document.createElement("a");a.href=i.src;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Open image ↗";i.replaceWith(a)}},true);
+addEventListener("error",e=>{const i=e.target;if(i&&i.tagName==="IMG"){const a=document.createElement("a");a.href=i.dataset.o||i.src;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Open image ↗";i.replaceWith(a)}},true);
 checkAuth();
 
 /* ---------- Events ---------- */
