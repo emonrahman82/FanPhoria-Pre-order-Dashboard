@@ -3,7 +3,7 @@
 const SHEET_URL  = "https://docs.google.com/spreadsheets/d/11WlvGfaOoVdfsN30qXzgZNd0h7KMoOtl0JChLFKDxlQ/edit";
 const TOKEN     = "prionty27";   // must match APPS_SCRIPT_TOKEN in index.html
 
-const HEAD = ["Order ID","Date","Status","Customer ID","Name","Phone","Address","Customer notes","Product","Anime","Category","Price","Image link","Total","Paid","Due","Order notes"];
+const HEAD = ["Order ID","Date","Status","Customer ID","Name","Phone","Address","Customer notes","Product","Anime","Category","Price","Image link","Shipping zone","Shipping charge","Total","Paid","Due","Order notes"];
 
 function sheet_(name, header) {
   const ss = SpreadsheetApp.openByUrl(SHEET_URL);
@@ -47,7 +47,7 @@ function doPost(e) {
       const o = d.order, c = d.customer || {};
       removeRows_(o.id);
       const orders = sheet_("Orders", HEAD);
-      (o.products || []).forEach(p => orders.appendRow([o.id, o.date, o.status, o.cid, c.name, c.phone, c.address, c.notes, p.name, p.anime, p.cat, p.price, p.img || "", o.total, o.paid || 0, (o.total || 0) - (o.paid || 0), o.notes]));
+      (o.products || []).forEach(p => orders.appendRow([o.id, o.date, o.status, o.cid, c.name, c.phone, c.address, c.notes, p.name, p.anime, p.cat, p.price, p.img || "", o.zone || "", o.ship || 0, o.total, o.paid || 0, (o.total || 0) - (o.paid || 0), o.notes]));
       sheet_("Data", ["Order ID", "JSON"]).appendRow([o.id, JSON.stringify({ order: o, customer: c })]);
       return out_({ ok: true });
     }
