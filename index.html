@@ -104,9 +104,11 @@ label{font-weight:500;margin-bottom:5px}
 /* ===== ADMIN LOGINS — edit usernames/passwords here (add more lines for more admins) ===== */
 const ADMINS=[{user:"admin",pass:"FanPhoria@2026"}];
 /* ===== GOOGLE CONNECTION — paste your Apps Script Web app URL and secret token here ===== */
-const APPS_SCRIPT_URL="https://script.google.com/macros/s/AKfycby72xRqTqA1y3NvGbnSGatx9O72BwDFQbFo_IDTcHZ4zz-lotGEKpX6zi3p1xDXjCKLWg/exec";
-const APPS_SCRIPT_TOKEN="prionty27";
+const APPS_SCRIPT_URL="https://script.google.com/macros/s/AKfycbw8x8HdPXlYjzZEUnfmnfNd6qjRR6l10TE1EHx01ltQVpYjOmErgflpKZk_zAFFlGfCoA/exec";
+const APPS_SCRIPT_TOKEN="change-this-secret";
 const CONNECTED=!APPS_SCRIPT_URL.startsWith("PASTE");
+/* ===== SHIPPING CHARGES (৳) — edit the amounts here ===== */
+const SHIP={"Inside Dhaka":60,"Outside Dhaka":120,"Self-PickUp":0};
 const ST=["New","Confirmed","Ordered","In Transit","Received","Ready for Delivery","Delivered","Cancelled"];
 const SC={New:"#d97706",Confirmed:"#2563eb",Ordered:"#7c3aed","In Transit":"#0891b2",Received:"#0d9488","Ready for Delivery":"#c026d3",Delivered:"#1f8a5b",Cancelled:"#6b7280"};
 const CATS=["Figure","Plush","Keychain","Clothing","Poster","Accessories","Manga","Other"];
@@ -224,6 +226,7 @@ function formV(){
   <div><label>Status</label><select id="os">${ST.map(s=>`<option ${s===(o.status||"New")?"selected":""}>${s}</option>`).join("")}</select></div></div>
   <label>Order notes</label><textarea id="on">${esc(o.notes)}</textarea></div>
   <div class="card"><h2>Products</h2><div id="prods"></div><button class="b g" id="addp" type="button">+ Add Product</button>
+  <div class="f" style="align-items:end"><div><label>Shipping</label><select id="sz">${Object.keys(SHIP).map(k=>`<option value="${k}" ${(o.zone||"Inside Dhaka")===k?"selected":""}>${k} (৳${SHIP[k]})</option>`).join("")}</select></div><div class="total" style="font-size:16px"><span>Shipping charge</span><span id="sh">৳0</span></div></div>
   <div class="total"><span>TOTAL</span><span id="tt">৳0</span></div>
   <div class="f" style="align-items:end"><div><label>PAID amount (৳)</label><input type="number" min="0" step="any" id="pd" value="${o.paid||0}"></div><div class="total" style="color:var(--acc)"><span>DUE</span><span id="du">৳0</span></div></div>
   <button class="b" id="sv" ${db?"":"disabled"}>${edit?"Save changes":"Save pre-order"}</button> <button class="b g" data-v="${edit?"all":"dash"}">Cancel</button></div>`;
@@ -238,7 +241,7 @@ function addRow(p={}){
   <button class="b g rm" type="button">Remove</button></div>`;
   $("#prods").appendChild(r);
 }
-function sum(){const t=$$(".pp").reduce((a,i)=>a+(+i.value||0),0);$("#tt").textContent=tk(t);const pd=+($("#pd")&&$("#pd").value)||0;if($("#du"))$("#du").textContent=tk(t-pd);return t}
+function sum(){const it=$$(".pp").reduce((a,i)=>a+(+i.value||0),0),sp=SHIP[$("#sz")&&$("#sz").value]||0,t=it+sp;if($("#sh"))$("#sh").textContent=tk(sp);$("#tt").textContent=tk(t);const pd=+($("#pd")&&$("#pd").value)||0;if($("#du"))$("#du").textContent=tk(t-pd);return t}
 async function upload(inp){
   const r=inp.closest(".prow"),f=inp.files[0];if(!f)return;
   if(!assets)return toast("Photo upload needs edit access to this dashboard");
@@ -260,7 +263,7 @@ async function save(){
     await db.doc("customers/"+cid).set({name:v("cn"),phone:v("cp"),address:v("ca"),notes:v("cno"),created:oc?.created||now,updated:now});
     const y=new Date().getFullYear(),oid=edit||`FP-${y}-`+String(Math.max(0,...orders.filter(o=>o.id.startsWith(`FP-${y}-`)).map(o=>+o.id.slice(-4)||0))+1).padStart(4,"0");
     const st=v("os");
-    const OD={cid,date:v("od")||today(),expected:v("oe"),status:st,notes:v("on"),products:ps,total:ps.reduce((a,p)=>a+p.price,0),paid:Math.max(0,+v("pd")||0),delivered:st==="Delivered"?(old?.delivered||today()):"",created:old?.created||now,updated:now};await db.doc("orders/"+oid).set(OD);
+    const OD={cid,date:v("od")||today(),expected:v("oe"),status:st,notes:v("on"),products:ps,zone:v("sz")||"Inside Dhaka",ship:SHIP[v("sz")]??60,total:ps.reduce((a,p)=>a+p.price,0)+(SHIP[v("sz")]??60),paid:Math.max(0,+v("pd")||0),delivered:st==="Delivered"?(old?.delivered||today()):"",created:old?.created||now,updated:now};await db.doc("orders/"+oid).set(OD);
     toast("Saved "+oid);edit=null;view="all";detail=oid;render(true);
   }catch(e){b.disabled=false;toast("Could not save: "+(e.message||e.code))}
 }
@@ -274,13 +277,13 @@ function drawModal(){
   $("#modal").innerHTML=`<div class="ov" data-x="1"><div class="modal"><div style="display:flex;justify-content:space-between;gap:10px;align-items:start"><div><h1 style="margin:0">${o.id}</h1><span class="mut">Order date ${fd(o.date)} · Expected ${fd(o.expected)}${o.delivered?" · Delivered "+fd(o.delivered):""}</span></div><button class="b g" data-x="1">Close</button></div>
   <h2 style="margin-top:18px">Customer</h2><div><b>${esc(c.name)}</b> <span class="mut">(${esc(o.cid)})</span><br>${esc(c.phone)}<br><span class="mut">${esc(c.address)||"No address"}</span>${c.notes?`<br><i>${esc(c.notes)}</i>`:""}</div>
   <h2 style="margin-top:18px">Products</h2>${(o.products||[]).map(p=>`<div class="pl"><div class="th">${pimg(p)||"No photo"}</div><div><b>${esc(p.name)}</b> <span class="mut">· ${esc(p.cat)}${p.anime?" · "+esc(p.anime):""}</span><br>${p.img?`<a href="${esc(hr(p.img))}" target="_blank" rel="noopener noreferrer">Image link</a>`:""}${p.notes?`<br><i>${esc(p.notes)}</i>`:""}</div><b>${tk(p.price)}</b></div>`).join("")}
-  <div class="total"><span>Total</span><span>${tk(o.total)}</span></div><div class="total" style="font-size:16px;padding:4px 0"><span>Paid</span><span>${tk(o.paid||0)}</span></div><div class="total" style="color:var(--acc);padding:4px 0"><span>Due</span><span>${tk(o.total-(o.paid||0))}</span></div>${o.notes?`<p><b>Order notes:</b> ${esc(o.notes)}</p>`:""}
+  ${o.zone?`<div class="total" style="font-size:16px;padding:4px 0"><span>Shipping (${esc(o.zone)})</span><span>${tk(o.ship||0)}</span></div>`:""}<div class="total"><span>Total</span><span>${tk(o.total)}</span></div><div class="total" style="font-size:16px;padding:4px 0"><span>Paid</span><span>${tk(o.paid||0)}</span></div><div class="total" style="color:var(--acc);padding:4px 0"><span>Due</span><span>${tk(o.total-(o.paid||0))}</span></div>${o.notes?`<p><b>Order notes:</b> ${esc(o.notes)}</p>`:""}
   <div class="bar" style="align-items:center"><select id="ms" style="max-width:200px">${ST.map(s=>`<option ${s===o.status?"selected":""}>${s}</option>`).join("")}</select>
   <button class="b" data-edit="${o.id}">Edit</button><button class="b g" data-inv="${o.id}">Invoice</button><button class="b g" data-cancel="${o.id}" ${o.status==="Cancelled"?"disabled":""}>Cancel order</button><button class="b d" data-del="${o.id}">${armed===o.id?"Click again to delete forever":"Delete"}</button></div></div></div>`;
 }
 const INVCSS=".invoice{background:#fff;color:#111;box-sizing:border-box;width:210mm;max-width:100%;min-height:296mm;padding:15mm;font:14px/1.5 Figtree,Arial,sans-serif;margin:auto}.invoice *{color:#111}.ih,.ig{display:flex;justify-content:space-between;gap:20px;margin-bottom:22px;flex-wrap:wrap}.ib{font:800 26px 'Bricolage Grotesque',Georgia,serif}.ib b{color:#bc1823}.ir{text-align:right}.invoice h2{margin:0 0 4px;font:800 24px 'Bricolage Grotesque',Georgia,serif;letter-spacing:.04em}.invoice small{display:block;color:#666!important;margin-bottom:2px}.invoice table{width:100%;border-collapse:collapse}.invoice th,.invoice td{padding:9px 8px;border-bottom:1px solid #ddd;text-align:left;white-space:normal;font-size:14px}.invoice th.r,.invoice td.r{text-align:right}.invoice tfoot td{border-top:2px solid #111;border-bottom:0;font-size:16px}.ift{margin-top:30px;color:#666!important;text-align:center}@page{size:A4;margin:0}.ih{border-bottom:3px solid #bc1823;padding-bottom:12px}.invoice th{background:#f4e6e7}";
 function invDoc(o){const c=cu(o),ps=o.products||[];
-  return `<style>${INVCSS}</style><div class="invoice"><div class="ih"><div><div class="ib">Fan<b>Phoria</b></div><div>Pre-order invoice</div></div><div class="ir"><h2>INVOICE</h2><div>No. INV-${o.id}</div><div>Issued ${fd(today())}</div></div></div><div class="ig"><div><small>Billed to</small><b>${esc(c.name)}</b><br>${esc(c.phone)}<br>${esc(c.address)}</div><div><small>Order</small>Pre-order ${o.id}<br>Order date ${fd(o.date)}<br>Expected arrival ${fd(o.expected)}<br>Status: ${esc(o.status)}</div></div><table><thead><tr><th>#</th><th>Item</th><th>Category</th><th class="r">Price</th></tr></thead><tbody>${ps.map((p,i)=>`<tr><td>${i+1}</td><td>${esc(p.name)}</td><td>${esc(p.cat)}</td><td class="r">${tk(p.price)}</td></tr>`).join("")}</tbody><tfoot><tr><td colspan="3" class="r"><b>Total</b></td><td class="r"><b>${tk(o.total)}</b></td></tr><tr><td colspan="3" class="r">Paid</td><td class="r">${tk(o.paid||0)}</td></tr><tr><td colspan="3" class="r"><b>Amount due</b></td><td class="r"><b>${tk(o.total-(o.paid||0))}</b></td></tr></tfoot></table>${o.notes?`<p><b>Notes:</b> ${esc(o.notes)}</p>`:""}<p class="ift">Thank you for pre-ordering with FanPhoria.</p></div>`}
+  return `<style>${INVCSS}</style><div class="invoice"><div class="ih"><div><div class="ib">Fan<b>Phoria</b></div><div>Pre-order invoice</div></div><div class="ir"><h2>INVOICE</h2><div>No. INV-${o.id}</div><div>Issued ${fd(today())}</div></div></div><div class="ig"><div><small>Billed to</small><b>${esc(c.name)}</b><br>${esc(c.phone)}<br>${esc(c.address)}</div><div><small>Order</small>Pre-order ${o.id}<br>Order date ${fd(o.date)}<br>Expected arrival ${fd(o.expected)}<br>Status: ${esc(o.status)}</div></div><table><thead><tr><th>#</th><th>Item</th><th>Category</th><th class="r">Price</th></tr></thead><tbody>${ps.map((p,i)=>`<tr><td>${i+1}</td><td>${esc(p.name)}</td><td>${esc(p.cat)}</td><td class="r">${tk(p.price)}</td></tr>`).join("")}</tbody><tfoot>${o.zone?`<tr><td colspan="3" class="r">Shipping (${esc(o.zone)})</td><td class="r">${tk(o.ship||0)}</td></tr>`:""}<tr><td colspan="3" class="r"><b>Total</b></td><td class="r"><b>${tk(o.total)}</b></td></tr><tr><td colspan="3" class="r">Paid</td><td class="r">${tk(o.paid||0)}</td></tr><tr><td colspan="3" class="r"><b>Amount due</b></td><td class="r"><b>${tk(o.total-(o.paid||0))}</b></td></tr></tfoot></table>${o.notes?`<p><b>Notes:</b> ${esc(o.notes)}</p>`:""}<p class="ift">Thank you for pre-ordering with FanPhoria.</p></div>`}
 async function setSt(id,st){
   try{await db.doc("orders/"+id).update({status:st,updated:new Date().toISOString(),delivered:st==="Delivered"?today():""});toast("Status: "+st)}catch(e){toast("Could not update: "+(e.message||e.code))}
 }
@@ -307,8 +310,8 @@ function repV(){
 
 /* ---------- Export ---------- */
 function expRows(){
-  const H=["Pre-Order ID","Order Date","Status","Customer ID","Customer Name","Phone","Delivery Address","Product Name","Product URL","Photo Ref","Price","Category","Product Notes","Order Total","Paid","Due","Order Notes","Expected Arrival","Delivered","Created","Updated"];
-  const R=[H];[...orders].sort((a,b)=>a.id.localeCompare(b.id)).forEach(o=>{const c=cu(o);(o.products?.length?o.products:[{}]).forEach(p=>R.push([o.id,o.date,o.status,o.cid,c.name,c.phone,c.address,p.name,p.url,p.photo,p.price,p.cat,p.notes,o.total,o.paid||0,o.total-(o.paid||0),o.notes,o.expected,o.delivered,o.created,o.updated].map(x=>x??"")))});return R;
+  const H=["Pre-Order ID","Order Date","Status","Customer ID","Customer Name","Phone","Delivery Address","Product Name","Product URL","Photo Ref","Price","Category","Product Notes","Shipping Zone","Shipping","Order Total","Paid","Due","Order Notes","Expected Arrival","Delivered","Created","Updated"];
+  const R=[H];[...orders].sort((a,b)=>a.id.localeCompare(b.id)).forEach(o=>{const c=cu(o);(o.products?.length?o.products:[{}]).forEach(p=>R.push([o.id,o.date,o.status,o.cid,c.name,c.phone,c.address,p.name,p.url,p.photo,p.price,p.cat,p.notes,o.zone||"",o.ship||0,o.total,o.paid||0,o.total-(o.paid||0),o.notes,o.expected,o.delivered,o.created,o.updated].map(x=>x??"")))});return R;
 }
 function expV(){
   return `<h1>Backup / Export</h1><div class="card"><p>Exports include every customer, order and product (one row per product) with prices, categories, URLs and status. Take a backup regularly.</p>
@@ -378,7 +381,7 @@ document.addEventListener("change",e=>{
 });
 document.addEventListener("input",e=>{
   const t=e.target,map={fq:"q",fs:"st",fc:"cat",fu:"cu",ff:"from",ft:"to"};
-  if(t.classList.contains("pp")||t.id==="pd")sum();
+  if(t.classList.contains("pp")||t.id==="pd"||t.id==="sz")sum();
   else if(t.classList.contains("pi")){const r=t.closest(".prow");if(!r.dataset.photo)r.querySelector(".pic").innerHTML=(/^https?:\/\/\S+\.\w{2,}/.test(t.value.trim())?pimg({img:t.value.trim()}):"Photo")}
   else if(map[t.id]){F[map[t.id]]=t.value;$("#tb").innerHTML=tbl(filtered())}
 });
